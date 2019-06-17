@@ -2,10 +2,15 @@ package edu.handong.csee.java.analyze;
 
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
@@ -34,6 +39,7 @@ public class AnalyzeFile<T> implements Runnable {
 		
 		Workbook workbookRead = null;
 		try {
+			
 			workbookRead = new XSSFWorkbook(stream);
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
@@ -57,14 +63,37 @@ public class AnalyzeFile<T> implements Runnable {
 				Cell readCell = cellIterator.next();
 				Cell writeCell = row.createCell(columnNum++);
 				
+				
 				switch(readCell.getCellType()){
 						
 					case STRING :
-						writeCell.setCellValue((String)readCell.getStringCellValue());
+		
+						String inputString = (String)readCell.getStringCellValue();
+					byte arrString[] = null;
+					try {
+						arrString = inputString.getBytes("utf-8");
+					} catch (UnsupportedEncodingException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+						inputString = new String(arrString);
+						writeCell.setCellValue(readCell.getStringCellValue());
+						System.out.println(writeCell.getStringCellValue());
 						break;
 					
 					case NUMERIC : 
-						writeCell.setCellValue((Double)readCell.getNumericCellValue());
+						String inputDouble = Double.toString((Double)readCell.getNumericCellValue());
+					byte arrDouble[] = null;
+					try {
+						arrDouble = inputDouble.getBytes("utf-8");
+					} catch (UnsupportedEncodingException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+						
+						inputDouble = new String(arrDouble);
+						writeCell.setCellValue(inputDouble);
+						System.out.println(writeCell.getStringCellValue());
 						break;
 					
 					case BLANK :
@@ -81,14 +110,18 @@ public class AnalyzeFile<T> implements Runnable {
 		
 		try {
 			if(csvType.contains("Summary")) {
-				FileOutputStream outputStream = new FileOutputStream("resultSummary.csv",true);
+				FileOutputStream outputStream = new FileOutputStream(csvType,true);
 				workbookWrite.write(outputStream);
+				
 				workbookWrite.close();
+				outputStream.close();
 			}
 			else {
-				FileOutputStream outputStream = new FileOutputStream("resultChart.csv",true);
+				FileOutputStream outputStream = new FileOutputStream(csvType,true);
 				workbookWrite.write(outputStream);
+				
 				workbookWrite.close();
+				outputStream.close();
 			}
 			
 		}catch(FileNotFoundException e) {
@@ -97,7 +130,5 @@ public class AnalyzeFile<T> implements Runnable {
 			e.printStackTrace();
 		}
 	
-
-		
 	}
 }

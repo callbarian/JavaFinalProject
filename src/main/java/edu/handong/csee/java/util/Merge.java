@@ -79,13 +79,15 @@ public class Merge{
 			ZipArchiveEntry entry = entries.nextElement();
 			
 			ZipFile zipFileSub;
+			if(entry.getName().contains("000")) { 
 			try {
 				zipFileSub = new ZipFile(entry.getName());
 			
 				Enumeration <? extends ZipArchiveEntry> entriesSub = zipFileSub.getEntries();
-			
+					
 				while(entriesSub.hasMoreElements()) {
 					ZipArchiveEntry eachEntry = entriesSub.nextElement();
+					System.out.println(eachEntry.getName());
 					if(eachEntry.getName().contains("요약")) {
 						InputStream stream = zipFileSub.getInputStream(eachEntry);
 						threadSummary[countThreadSummary] = new Thread(new AnalyzeFile<String>(writepath+"Summary",stream,entry.getName()));
@@ -103,6 +105,10 @@ public class Merge{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			}
+			else
+				continue;
+				
 		}
 		}catch (IOException e1) {
 			// TODO Auto-generated catch block

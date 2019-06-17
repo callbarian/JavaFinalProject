@@ -1,9 +1,14 @@
 package edu.handong.csee.java;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -12,7 +17,8 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.compress.archivers.zip.ZipFile;
+//import org.apache.commons.compress.archivers.zip.ZipFile;
+import org.apache.commons.compress.utils.IOUtils;
 
 import edu.handong.csee.java.analyze.AnalyzeFile;
 import edu.handong.csee.java.util.NotEnoughArgumentException;
@@ -59,41 +65,48 @@ public class Merge{
 		
 		
 		ZipFile zipFile;
+		Charset euc = Charset.forName("utf-8");
 		
 		try {
 			zipFile = new ZipFile(readpath);
 			int numberOfZipFiles = 0;
-		Enumeration <? extends ZipArchiveEntry> entries = zipFile.getEntries();
+		Enumeration<? extends ZipEntry> entries = zipFile.entries();
 		while(entries.hasMoreElements()) {
-			entries.nextElement();
+			ZipEntry entry = entries.nextElement();
 			numberOfZipFiles++;
+			System.out.println(entry.getName());
 		}
 		
 		System.out.println(numberOfZipFiles);
 		threadSummary = new Thread[numberOfZipFiles];
 		threadChart = new Thread[numberOfZipFiles];
 		
-		entries = zipFile.getEntries();
+		entries = zipFile.entries();
 		
 		while(entries.hasMoreElements()) {
-			ZipArchiveEntry entry = entries.nextElement();
+			ZipEntry entry = entries.nextElement();
 			
-			ZipFile zipFileSub;
+			
+			if(entry.getName().contains("000")) { 
 			try {
-				zipFileSub = new ZipFile(entry.getName());
+				File tempFile = File.createTempFile("tempFile", "zip");
+				FileOutputStream tempOut = new FileOutputStream(tempFile);
+				IOUtils.copy(zipFile.getInputStream(new ZipEntry(entry.getName())),tempOut);
+				ZipFile zipFileSub = new ZipFile(tempFile);
 			
-				Enumeration <? extends ZipArchiveEntry> entriesSub = zipFileSub.getEntries();
-			
+				Enumeration<? extends ZipEntry> entriesSub = zipFileSub.entries();
+					
 				while(entriesSub.hasMoreElements()) {
-					ZipArchiveEntry eachEntry = entriesSub.nextElement();
+					ZipEntry eachEntry = (ZipEntry)entriesSub.nextElement();
+					System.out.println(eachEntry.getName());
 					if(eachEntry.getName().contains("요약")) {
 						InputStream stream = zipFileSub.getInputStream(eachEntry);
-						threadSummary[countThreadSummary] = new Thread(new AnalyzeFile<String>(writepath+"Summary",stream,entry.getName()));
+						threadSummary[countThreadSummary] = new Thread(new AnalyzeFile<String>("Summary"+writepath,stream,entry.getName()));
 						threadSummary[countThreadSummary++].start();
 					}
 					else {
 						InputStream stream = zipFileSub.getInputStream(eachEntry);
-						threadChart[countThreadChart] = new Thread(new AnalyzeFile<String>(writepath+"Chart",stream,entry.getName()));
+						threadChart[countThreadChart] = new Thread(new AnalyzeFile<String>("Chart"+writepath,stream,entry.getName()));
 						threadChart[countThreadChart++].start();
 					
 					}
@@ -103,6 +116,10 @@ public class Merge{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			}
+			else
+				continue;
+				
 		}
 		}catch (IOException e1) {
 			// TODO Auto-generated catch block
