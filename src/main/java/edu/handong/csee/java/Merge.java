@@ -4,11 +4,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
+//import java.util.zip.ZipEntry;
+//import java.util.zip.ZipFile;
+//import java.util.zip.ZipInputStream;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -17,12 +19,13 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
 //import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.apache.commons.compress.utils.IOUtils;
 
 import edu.handong.csee.java.analyze.AnalyzeFile;
 import edu.handong.csee.java.util.NotEnoughArgumentException;
-
+import edu.handong.csee.java.util.FileNotExcelFormatException;
 
 public class Merge{
 	private String readpath;
@@ -62,17 +65,17 @@ public class Merge{
 			
 		}
 		
-		
+		String[] writepathStrings = writepath.split("\\.");
+		String writepathString = writepathStrings[0].trim();
 		
 		ZipFile zipFile;
-		Charset euc = Charset.forName("utf-8");
 		
 		try {
 			zipFile = new ZipFile(readpath);
 			int numberOfZipFiles = 0;
-		Enumeration<? extends ZipEntry> entries = zipFile.entries();
+		Enumeration<? extends ZipArchiveEntry> entries = zipFile.getEntries();
 		while(entries.hasMoreElements()) {
-			ZipEntry entry = entries.nextElement();
+			ZipArchiveEntry entry = entries.nextElement();
 			numberOfZipFiles++;
 			System.out.println(entry.getName());
 		}
@@ -81,41 +84,74 @@ public class Merge{
 		threadSummary = new Thread[numberOfZipFiles];
 		threadChart = new Thread[numberOfZipFiles];
 		
-		entries = zipFile.entries();
+		entries = zipFile.getEntries();
 		
 		while(entries.hasMoreElements()) {
-			ZipEntry entry = entries.nextElement();
-			
+			ZipArchiveEntry entry = entries.nextElement();
 			
 			if(entry.getName().contains("000")) { 
 			try {
-				File tempFile = File.createTempFile("tempFile", "zip");
-				FileOutputStream tempOut = new FileOutputStream(tempFile);
-				IOUtils.copy(zipFile.getInputStream(new ZipEntry(entry.getName())),tempOut);
-				ZipFile zipFileSub = new ZipFile(tempFile);
-			
-				Enumeration<? extends ZipEntry> entriesSub = zipFileSub.entries();
-					
+	
+				ZipFile zipFileSub = new ZipFile("data/"+entry.getName());
+				Enumeration<? extends ZipArchiveEntry> entriesSub = zipFileSub.getEntries();
+				int i = 0;
 				while(entriesSub.hasMoreElements()) {
-					ZipEntry eachEntry = (ZipEntry)entriesSub.nextElement();
-					System.out.println(eachEntry.getName());
-					if(eachEntry.getName().contains("요약")) {
-						InputStream stream = zipFileSub.getInputStream(eachEntry);
-						threadSummary[countThreadSummary] = new Thread(new AnalyzeFile<String>("Summary"+writepath,stream,entry.getName()));
-						threadSummary[countThreadSummary++].start();
+					i++;
+					ZipArchiveEntry entrySub = entriesSub.nextElement();
+					
+					try {
+						System.out.println(entrySub.getName());
+						if(!entrySub.getName().contains(".xl")) 
+							throw new FileNotExcelFormatException();
+					}catch(FileNotExcelFormatException e) {
+						e.getMessage();
+						FileOutputStream exceptionStream = new FileOutputStream("error.csv",true);
+						PrintWriter writer = new PrintWriter(exceptionStream);
+						writer.write(entry.getName());
+						writer.close();
+						exceptionStream.close();
+					}
+					
+					
+					if(i==1) {
+						InputStream stream = zipFileSub.getInputStream(entrySub);
+						
+						threadSummary[countThreadSummary] = new Thread(new AnalyzeFile<String>(writepathString+"1.csv",stream,entry.getName().substring(0,4)));
+						System.out.println("thread" + countThreadSummary);
+						threadSummary[countThreadSummary].start();
+						try {
+							threadSummary[countThreadSummary++].join();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						stream.close();
+						
+						
 					}
 					else {
-						InputStream stream = zipFileSub.getInputStream(eachEntry);
-						threadChart[countThreadChart] = new Thread(new AnalyzeFile<String>("Chart"+writepath,stream,entry.getName()));
-						threadChart[countThreadChart++].start();
+						InputStream stream = zipFileSub.getInputStream(entrySub);
 					
+						threadChart[countThreadChart] = new Thread(new AnalyzeFile<String>(writepathString+"2.csv",stream,entry.getName().substring(0,4)));
+						System.out.println("thread" + countThreadChart);
+						threadChart[countThreadChart].start();
+						try {
+							threadChart[countThreadChart++].join();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						stream.close();
+						
 					}
+					
+					
 					
 				}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}
+			} 
 			}
 			else
 				continue;
@@ -126,6 +162,7 @@ public class Merge{
 			e1.printStackTrace();
 		}
 		
+		/*
 		for(int i=0; i<countThreadSummary; i++) {
 			try {
 				threadSummary[i].join();
@@ -140,6 +177,8 @@ public class Merge{
 				e.printStackTrace();
 			}
 		}
+		*/
+		
 	}
 	
 	private boolean parseOptions(Options options, String[] args) {

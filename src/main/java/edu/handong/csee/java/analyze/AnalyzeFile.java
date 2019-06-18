@@ -1,9 +1,12 @@
 package edu.handong.csee.java.analyze;
 
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -14,6 +17,8 @@ import java.nio.charset.Charset;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
@@ -32,12 +37,37 @@ public class AnalyzeFile<T> implements Runnable {
 		this.studentId = studentId;
 		this.csvType = csvType;
 	}
+	
 	public void run() {
-		XSSFWorkbook workbookWrite  = new XSSFWorkbook();
-		XSSFSheet sheet = workbookWrite.createSheet();
+		ArrayList<String> inputList = new ArrayList<String>();
+		HSSFWorkbook workbookWrite = null;
+		HSSFSheet sheet = null;
+		
+		if(!studentId.equals("0001")) {
+		FileInputStream fileInputStream = null;
+		try {
+			fileInputStream = new FileInputStream(new File(csvType));
+		} catch (FileNotFoundException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
 		
 		
-		Workbook workbookRead = null;
+		try {
+			workbookWrite = new HSSFWorkbook(fileInputStream);
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+			sheet = workbookWrite.getSheetAt(0);
+		
+		}
+		else {
+			workbookWrite = new HSSFWorkbook();
+			sheet = workbookWrite.createSheet();
+		}
+		
+		XSSFWorkbook workbookRead = null;
 		try {
 			
 			workbookRead = new XSSFWorkbook(stream);
@@ -48,9 +78,15 @@ public class AnalyzeFile<T> implements Runnable {
 		
 		Sheet datatypeSheet = workbookRead.getSheetAt(0);
 		Iterator<Row> iterator = datatypeSheet.iterator();
+		if(!studentId.equals("0001")) {
+			iterator.next();
+		}
 		
-		int rowNum = 0;
+		boolean header = false;
+		int rowNum = sheet.getLastRowNum()+1;
+		
 		while(iterator.hasNext()) {
+			
 			Row currentRow = iterator.next();
 			Iterator<Cell> cellIterator = currentRow.iterator();
 			
@@ -67,33 +103,13 @@ public class AnalyzeFile<T> implements Runnable {
 				switch(readCell.getCellType()){
 						
 					case STRING :
-		
-						String inputString = (String)readCell.getStringCellValue();
-					byte arrString[] = null;
-					try {
-						arrString = inputString.getBytes("utf-8");
-					} catch (UnsupportedEncodingException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-						inputString = new String(arrString);
-						writeCell.setCellValue(readCell.getStringCellValue());
+						writeCell.setCellValue((String)readCell.getStringCellValue());
 						System.out.println(writeCell.getStringCellValue());
 						break;
 					
 					case NUMERIC : 
-						String inputDouble = Double.toString((Double)readCell.getNumericCellValue());
-					byte arrDouble[] = null;
-					try {
-						arrDouble = inputDouble.getBytes("utf-8");
-					} catch (UnsupportedEncodingException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-						
-						inputDouble = new String(arrDouble);
-						writeCell.setCellValue(inputDouble);
-						System.out.println(writeCell.getStringCellValue());
+						writeCell.setCellValue((Double)readCell.getNumericCellValue());
+						System.out.println(writeCell.getNumericCellValue());
 						break;
 					
 					case BLANK :
@@ -109,20 +125,22 @@ public class AnalyzeFile<T> implements Runnable {
 		}
 		
 		try {
-			if(csvType.contains("Summary")) {
-				FileOutputStream outputStream = new FileOutputStream(csvType,true);
+			workbookRead.close();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		FileOutputStream outputStream = null;
+		try {
+			
+			
+				outputStream = new FileOutputStream(new File(csvType));
 				workbookWrite.write(outputStream);
 				
 				workbookWrite.close();
 				outputStream.close();
-			}
-			else {
-				FileOutputStream outputStream = new FileOutputStream(csvType,true);
-				workbookWrite.write(outputStream);
-				
-				workbookWrite.close();
-				outputStream.close();
-			}
+			
 			
 		}catch(FileNotFoundException e) {
 			e.printStackTrace();
